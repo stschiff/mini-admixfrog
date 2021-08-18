@@ -53,29 +53,27 @@ run_forward <- function(data, equilibrium_probs, transition_matrix, a_prime, d_p
     a <- data$source_a[[i]]
     d <- data$source_d[[i]]
     emission_vec <- purrr::map(state_tuples, function(s) {emission_prob(g, s, a, d)})
-    previous_forward_vec <- if(i == 1) equilibrium_probs else forward_vec[,i-1]
-    new_forward_vec <- (transition_matrix %*% previous_forward_vec) * emission_vec
+    previous_forward_vec <- if(i == 1) rep(1.0, 3) else forward_vec[,i-1]
+    new_forward_vec <- (t(transition_matrix) %*% previous_forward_vec) * emission_vec
     scaling_factors[i] <- sum(new_forward_vec)
     forward_vec[,i] <- new_forward_vec / scaling_factors[i]
   }
   return(list(forward_vec, scaling_factors))
 }
 
-run_backward <- function(data, transition_matrix, a_prime, d_prime) {
+run_backward <- function(data, scaling_factors, transition_matrix, a_prime, d_prime) {
   state_tuples <- list(c(1, 1), c(1, 2), c(2, 2))
   L <- nrow(data)
-  forward_vec <- matrix(0.0, ncol=L, nrow=3)
-  scaling_factors <- rep(1.0, L)
-  for(i in 1:L) {
+  backward_vec <- matrix(0.0, ncol=L, nrow=3)
+  for(i in L:1) {
     g <- data$genotype[i]
     a <- data$source_a[[i]]
     d <- data$source_d[[i]]
     emission_vec <- purrr::map(state_tuples, function(s) {emission_prob(g, s, a, d)})
-    previous_forward_vec <- if(i == 1) equilibrium_probs else forward_vec[,i-1]
-    new_forward_vec <- (transition_matrix %*% previous_forward_vec) * emission_vec
-    scaling_factors[i] <- sum(new_forward_vec)
-    forward_vec[,i] <- new_forward_vec / scaling_factors[i]
+    previous_backward_vec <- if(i == L) equilibrium_probs else backward_vec[,i+1]
+    new_backward_vec <- transition_matrix %*% (previous_backward_vec * emission_vec)
+    backward_vec[,i] <- new_backward_vec / scaling_factors[i]
   }
-  return(list(forward_vec, scaling_factors))
+  return(backward_vec)
 }
 
