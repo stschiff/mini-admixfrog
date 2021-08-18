@@ -8,6 +8,14 @@ output:
 bibliography: references.bib 
 ---
 
+```{r include=FALSE}
+library(magrittr)
+source("defs.R")
+```
+
+
+# Introduction
+
 We want to create a simple HMM that is able to paint an unphased diploid target genome into local ancestry states, according to multiple source genomes.
 
 Observations are structured along SNPs at which i) the derived allele frequencies \emph{differ} between the sources, and ii) there is no missing data in the target and at least one non-missing genotype in each source genome.
@@ -24,6 +32,8 @@ We will omit the SNP indices $i$ in the following.
 
 The emission probability $$e(G|\{a_k,d_k\},S)$$ is the probability of a target genotype, given the local state $S^i$ and source allele counts ($a_k^i$ and $d_k^i$). We follow the original admixfrog model and write the emission probabilities as a betabinomial sampling probability [@Peter2020-rf]. 
 
+## Homozygous states
+
 Specifically, for homozygous states (i.e. $S=11,22,\ldots$), we have
 
 \begin{equation}
@@ -31,6 +41,7 @@ e(G|a,d,S) = \binom{2}{G}\frac{B(G+d+d', 2-G+a+a')}{B(d+d'+a+a')}
 \end{equation}
 where we have omitted the $k$ index for the respective homozygous state. There are prior parameters $a'$ and $d'$ which control the sampling uncertainty in the source genotypes. A simple choice for the priors is $a'=d'=1$, but since we here deal mostly with the case of very few source genomes, often only one per source, it is more advisable to choose values much smaller than 1 to mimic the expected site frequency spectrum. In practice, we can fit it from data, or simply guess around values such as 0.1 or 0.01, since arguably the results won't depend too much on it.
 
+## Heterozygous states
 For heterozygous states, without loss of generality we here write $a_1, d_1, a_2, d_2$ for the two respective sources, and have:
 
 \begin{align}
@@ -40,5 +51,47 @@ For heterozygous states, without loss of generality we here write $a_1, d_1, a_2
   e(G=2|a_1,d_1, a_2, d_2, S) &= \frac{(d_1+d')(d_2+d')}{(d_1+d'+a_1+a')(d_2+d'+a_2+a')}
 \end{align}
 
+## Inspecting emission probabilities
+
+```{r}
+emission_dat <- tidyr::crossing(
+  target = c(0,1,2),
+  source1 = c(0,1,2),
+  source2 = c(0,1,2),
+)
+get_emission_probs <- function(state_tuple) {
+  purrr::pmap_dbl(emission_dat,
+                  function(target, source1, source2)
+                    emission_prob(target, state_tuple, c(2 - source1, 2 - source2), c(source1, source2)))
+}
+emission_dat <- dplyr::mutate(emission_dat,
+              emission_probs_11 = get_emission_probs(c(1, 1)),
+              emission_probs_12 = get_emission_probs(c(1, 2)),
+              emission_probs_22 = get_emission_probs(c(2, 2))
+)
+emission_dat %>% knitr::kable()
+```
+
+We can get a bit more overview by listing those observations which are most likely under a given state. Starting with state 11:
+
+```{r}
+emission_dat %>%
+  dplyr::filter(emission_probs_11 > emission_probs_12 & emission_probs_11 > emission_probs_22) %>%
+  knitr::kable()
+```
+
+This makes sense, as these are homozygous target states for which source1 has at least one of the target alleles, and source2 has an opposing homozygote. We don't have to check for state 22, as it's going to be just the opposite symmetric.
+
+For the heterozygous state 12 we have:
+
+```{r}
+emission_dat %>%
+  dplyr::filter(emission_probs_12 > emission_probs_11 & emission_probs_12 > emission_probs_22) %>%
+  knitr::kable()
+```
+
+We see that these are all possible heterozygous target genotypes, interestingly even those for which the two sources have the same genotype. 
+
+An important insight here is that for a diploid model such as this one, we should not filter our observations at which both sources have the same genotype, or even two similar homozygotes. The key is that even at those sites, the three states have differing probabilities which may help with decoding. An exception are cases where either all three genomes are hom-ref, or all three genomes are hom-alt. While in these cases, there is minimal advantage for homozygous states (see complete table above), but it's so minimal that we can skip those.
 
 # References
