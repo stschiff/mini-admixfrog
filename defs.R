@@ -35,6 +35,27 @@ emission_prob <- function(genotype, state_tuple, source_a, source_d, a_prime=0.1
   }
 }
 
+equilibrium_probs <- function(prop2) {
+  prop1 = 1.0 - prop2
+  c(prop1 ^ 2, 2 * prop1 * prop2, prop2 ^ 2)
+}
+
+transition_probs <- function(prop2, length2) {
+  prop1 = 1.0 - prop2
+  length1 = prop1 * length2 / prop2
+  t12 = 2.0 / length1
+  t13 = 1.0 / length1 ^ 2
+  t11 = 1.0 - t12 - t13
+  t21 = 1.0 / length2
+  t23 = 1.0 / length1
+  t22 = 1.0 - t21 - t23
+  t31 = 1.0 / length2 ^ 2
+  t32 = 2.0 / length2
+  t33 = 1.0 - t31 - t32
+  matrix(c(t11, t12, t13, t21, t22, t23, t31, t32, t33), nrow = 3, byrow = TRUE)
+}
+
+
 # Expect data to be a data-frame with the following column-names:
 # chrom
 # pos

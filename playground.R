@@ -6,7 +6,7 @@ source("defs.R")
 emission_prob(genotype = 0, state_tuple = c(1, 2), source_a = c(0, 2), source_d = c(2, 0))
 
 # I have prepared a test file with the first 10,000 SNPs of the input file
-dat <- readr::read_tsv("~/Data/iceman_obs.diploid.wgs_short.tsv") %>%
+dat <- readr::read_tsv("~/Data/merge_vcf.iceman_obs.wgs_short.tsv") %>%
   dplyr::transmute(
     chrom = chr,
     pos = pos,
@@ -15,7 +15,14 @@ dat <- readr::read_tsv("~/Data/iceman_obs.diploid.wgs_short.tsv") %>%
     source_d = purrr::map2(s1_dr, s2_dr, c)
   )
 
-eq_probs <- c(0.25, 0.5, 0.25) # three states in Hardy-Weinberg eq.
+s1_prop = 0.97
+s2_prop = 1 - s1_prop
+
+# three states in Hardy-Weinberg eq.
+eq_probs <- c(s1_prop ^ 2, 2 * s1_prop * s2_prop, s2_prop ^ 2)
+
+# transition probabilities from state i to state j are conditional on state i,
+# so normalised across the second index
 trans_matrix <- matrix(c(0.99, 0.01, 0.01, 0.01, 0.99, 0.01, 0.01, 0.01, 0.99), ncol=3)
 
 fwd_dat <- run_forward(dat, eq_probs, trans_matrix, 0.1, 0.1)

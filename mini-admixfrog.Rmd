@@ -94,4 +94,63 @@ We see that these are all possible heterozygous target genotypes, interestingly 
 
 An important insight here is that for a diploid model such as this one, we should not filter our observations at which both sources have the same genotype, or even two similar homozygotes. The key is that even at those sites, the three states have differing probabilities which may help with decoding. An exception are cases where either all three genomes are hom-ref, or all three genomes are hom-alt. While in these cases, there is minimal advantage for homozygous states (see complete table above), but it's so minimal that we can skip those.
 
+# Equilibrium states
+
+The diploid equilibrium states follow Hardy-Weinberg equilibrium given certain ancestral source proportions. In general, given source proportions $p_1$ and $p_2=1-p_1$, we have equilibrium probabilities
+
+\begin{align}
+  p_{11} &= (p_1)^2 \\
+  p_{12} &= 2 p_1 p_2 \\
+  p_{22} &= (p_2)^2
+\end{align}
+
+By construction, the equilibrium probabilities sum to 1.
+
+Let's take the example where proportions are 0.97 and 0.03 for the two haploid states, respectively:
+
+```{r}
+equilibrium_probs(0.03)
+```
+
+# Transition probabilities
+
+Transition probabilities are described from one state (index `i`) to another state (index `j`), and are considered _conditional_ on state `i`, and then normalised across index `j` (i.e. rows).
+
+Given the constraints set by the equilibrium probabilities, there is a single parameter which controls the transition probabilities, which is the expected length (in units of SNPs) of one of the states (we pick state 2 here). We denote the expected length of (haploid) state 2 by $l_2$. The expected length of state 1 is then determined by the haploid state proportions, following detailed balance:
+
+\begin{equation}
+  \frac{l_1}{l_2} = \frac{p_1}{p_2}
+\end{equation}
+
+which means that $l_1 = p_1 * l_2 / p_2$.
+
+So now, were we to describe transition probabilities in haploid states, then the transitions would be simple:
+
+\begin{equation}
+  \begin{pmatrix}
+    1-1/l_1 & 1/l_1 \\
+    1/l_2 & 1 - 1/l_2
+  \end{pmatrix}
+\end{equation}
+
+This translates to the diploid state space as follows:
+
+\begin{equation}
+  (A_{ij}) = \begin{pmatrix}
+    \cdot & 2 / l_1 & 1 / (l_1)^2 \\
+    1 / l_2 & \cdot & 1 / l_1 \\
+    1 / (l_2)^2 & 2 / l_2 & \cdot
+  \end{pmatrix}
+\end{equation}
+
+where the dots on the diagonal simply are fixed by the row-normalization. The factor 2 on two of the middle off-diagonals reflect the fact that from a homozygous state, there are two ways to switch to a heterozygous state, and the squared values on the corner off-diagonals reflect the very small probability to switch from one homozygous state to another, by simultaneously switching both haplotypes.
+
+We can look at an example, using a proportion of 0.03 of the minor component, and an expected length of 100 SNPs for the minor component:
+
+```{r}
+transition_probs(0.03, 100)
+```
+
+which shows the large numbers on the diagonal, reflecting the fact that states don't switch all the time, and the extremely low number on the top right, which gives the almost non-existent probability for both haplotypes to switch simultaneously from state 1 to state 2. Note also the highly asymmetrical structure reflecting the very different lengths of the two states (reflecting of course the very different proportions).
+
 # References
